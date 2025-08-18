@@ -26,7 +26,7 @@ quality, bilingual, multi-turn, conversational, and abstract semantic dataset de
 </p>
 
 ## Dataset
-We introduce <a href="https://drive.google.com/drive/folders/1ScmHPvpZP_BiiibFgze1WWW3T9I2K15m?usp=sharing">IVCR-200K</a>, a bilingual, multi-turn, conversational, abstract semantic high-quality dataset that supports video retrieval and even moment retrieval.
+We introduce <a href="https://drive.google.com/drive/folders/1ERhfBTEdnDM9qe1q0ursV1r1ii2zfGnx?usp=drive_link">IVCR-200K</a>, a bilingual, multi-turn, conversational, abstract semantic high-quality dataset that supports video retrieval and even moment retrieval.
 
 ## Usage
 #### Enviroment Preparation 
