@@ -296,4 +296,4 @@ dependencies:
       - yacs==0.1.8
       - yarl==1.8.2
       - zipp==3.14.0
-prefix: /data/longshaohua/.conda/envs/ivcr
+# prefix: /data/longshaohua/.conda/envs/ivcr  # 已注释掉原作者的个人路径，conda会自动使用默认环境路径

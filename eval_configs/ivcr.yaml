@@ -12,12 +12,12 @@ model:
   frozen_video_Qformer: True
   num_query_token: 32
 
-  vit_model: "/home/longshaohua/Ckpt/eva_vit/eva_vit_g.pth"
-  llama_model: "/home/longshaohua/Llama-2-7b-chat-hf"
-  # llama_model: "/home/longshaohua/Llama-3.2-3B-Instruct"
-  q_former_model: "/home/longshaohua/Ckpt/instruct_blip_vicuna7b_trimmed.pth"
-  ckpt: "/home/longshaohua/IVCR_Result/Train_Result/ckpt/ivcr/first_train/2025_06_16_21_21/checkpoint_4.pth"
-  # ckpt_2: "/home/longshaohua/Ckpt/VL_LLaMA_2_7B_Finetuned.pth"
+  vit_model: "/data1/ivcr/checkpoints/eva_vit_g.pth"
+  llama_model: "/data1/ivcr/checkpoints/Llama-2-7b-chat-hf"
+  # llama_model: "/data1/ivcr/checkpoints/Llama-3.2-3B-Instruct"
+  q_former_model: "/data1/ivcr/checkpoints/instruct_blip_vicuna7b_trimmed.pth"
+  ckpt: "./outputs/train/checkpoint_4.pth"
+  # ckpt_2: "/data1/ivcr/checkpoints/Video-LLaMA-2-7B-Finetuned/VL_LLaMA_2_7B_Finetuned.pth"
   
   fusion_head_layers: 2
   max_frame_pos: 64
@@ -36,9 +36,9 @@ datasets:
   ivcr_instruct:
     data_type: video
     build_info:
-      anno_dir : "/home/longshaohua/Dataset/use_xpool_top10/IVCR_no_type0_no_zero_dialogues_test.json"
-      videos_dir : "/home/longshaohua/Dataset/ivcr_compress"
-      vid_vname_dir: "/home/longshaohua/Dataset/use_xpool_top10/IVCR_no_type0_no_zero_dialogues_video_list_test.json"
+      anno_dir : "./data/IVCR_no_type0_no_zero_dialogues_test.json"
+      videos_dir : "/data1/ivcr/videos/ivcr_compress"
+      vid_vname_dir: "./data/IVCR_no_type0_no_zero_dialogues_video_list_test.json"
     vis_processor:
       train:
         name: "alpro_video_eval"
@@ -57,4 +57,4 @@ datasets:
 
 run:
   task: video_text_pretrain
-  output_dir: "/home/longshaohua/IVCR_Result/Eval_Result/2025_06_16_21_21/4/"
+  output_dir: "./outputs/eval/"

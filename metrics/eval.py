@@ -252,9 +252,9 @@ def cal_multi_reslut(pre_data,all_data):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pred_file", type=str, default="/home/longshaohua/IVCR_Result/Eval_Result/2025_06_16_21_21/2/result_new.json")
-    parser.add_argument('--gt_file', type=str, default='/home/longshaohua/Dataset/use_xpool_top10/IVCR_no_type0_no_zero_dialogues_test_up7_new.json')
-    parser.add_argument('--all_file',type=str,default='/home/longshaohua/Dataset/use_xpool_top10/IVCR-200K_new.json')
+    parser.add_argument("--pred_file", type=str, default="./outputs/eval/result.json")
+    parser.add_argument('--gt_file', type=str, default='./data/IVCR_no_type0_no_zero_dialogues_test.json')
+    parser.add_argument('--all_file',type=str,default='./data/IVCR-200K.json')
     parser.add_argument('--sample', action='store_true', default=False)
     args = parser.parse_args()
     '''

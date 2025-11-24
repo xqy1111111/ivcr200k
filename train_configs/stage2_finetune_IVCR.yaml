@@ -5,13 +5,13 @@ model:
   freeze_qformer: False
   # Q-Former
   num_query_token: 32
-  vit_model: "/home/longshaohua/Ckpt/eva_vit/eva_vit_g.pth"
-  llama_model: "/home/longshaohua/Llama-2-7b-chat-hf"
-  # llama_model: "/home/longshaohua/Llama-3.2-3B-Instruct"
-  q_former_model: "/home/longshaohua/Ckpt/instruct_blip_vicuna7b_trimmed.pth" #for image qformer
-  ckpt: "/home/longshaohua/Ckpt/timechat_7b.pth"
-  # ckpt: "/home/longshaohua/IVCR_Result/Train_Result/ckpt/ivcr/first_train/2025_02_24_03_35/checkpoint_2.pth"   # continue fine-tuning from TimeChat-7B ckpt
-  ckpt_2: "/home/longshaohua/Ckpt/VL_LLaMA_2_7B_Finetuned.pth"  # fine-tuning from Video-LLaMA-2-7B ckpt for video qformer
+  vit_model: "/data1/ivcr/checkpoints/eva_vit_g.pth"
+  llama_model: "/data1/ivcr/checkpoints/Llama-2-7b-chat-hf"
+  # llama_model: "/data1/ivcr/checkpoints/Llama-3.2-3B-Instruct"
+  q_former_model: "/data1/ivcr/checkpoints/instruct_blip_vicuna7b_trimmed.pth" #for image qformer
+  ckpt: "/data1/ivcr/checkpoints/TimeChat-7b/timechat_7b.pth"
+  # ckpt: "/data1/ivcr/outputs/train/checkpoints/checkpoint_2.pth"   # continue fine-tuning from TimeChat-7B ckpt
+  ckpt_2: "/data1/ivcr/checkpoints/Video-LLaMA-2-7B-Finetuned/VL_LLaMA_2_7B_Finetuned.pth"  # fine-tuning from Video-LLaMA-2-7B ckpt for video qformer
 
   # only train vision branch
   frozen_llama_proj: False
@@ -36,9 +36,9 @@ datasets:
   ivcr_instruct:
     data_type: video
     build_info:
-      anno_dir : "/home/longshaohua/Dataset/use_xpool_top10/IVCR_no_type0_dialogues_train.json"
-      videos_dir : "/home/longshaohua/Dataset/ivcr_compress"
-      vid_vname_dir: "/home/longshaohua/Dataset/use_xpool_top10/IVCR_no_type0_dialogues_video_list_train.json"
+      anno_dir : "./data/IVCR_no_type0_dialogues_train.json"
+      videos_dir : "/data1/ivcr/videos/ivcr_compress"
+      vid_vname_dir: "./data/IVCR_no_type0_dialogues_video_list_train.json"
     vis_processor:
       train:
         name: "alpro_video_train"
@@ -75,8 +75,8 @@ run:
   log_freq: 100
   
   seed: 21
-  output_dir: "/home/longshaohua/IVCR_Result/Train_Result/ckpt/ivcr/first_train/"
-  # resume_ckpt_path: "/home/longshaohua/IVCR_Result/Train_Result/ckpt/ivcr/first_train/2025_06_14_01_28/checkpoint_1.pth"
+  output_dir: "./outputs/train/"
+  # resume_ckpt_path: "./outputs/train/checkpoint_1.pth"
   amp: True
 
   evaluate: False
