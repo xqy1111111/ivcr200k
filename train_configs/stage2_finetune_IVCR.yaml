@@ -37,7 +37,7 @@ datasets:
     data_type: video
     build_info:
       anno_dir : "./data/IVCR_no_type0_dialogues_train.json"
-      videos_dir : "/data1/ivcr/videos/ivcr_compress"
+      videos_dir : "./data/ivcr200k_data/Videos"
       vid_vname_dir: "./data/IVCR_no_type0_dialogues_video_list_train.json"
     vis_processor:
       train:
