@@ -553,8 +553,7 @@ class RunnerBase:
                     num_workers=num_workers,
                     pin_memory=True,
                     sampler=sampler,
-                    # shuffle=sampler is None and is_train,
-                    shuffle=True,
+                    shuffle=sampler is None and is_train,
                     collate_fn=collate_fn,
                     drop_last=True if is_train else False,
                 )

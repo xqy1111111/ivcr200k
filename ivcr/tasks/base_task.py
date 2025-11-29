@@ -189,8 +189,19 @@ class BaseTask:
         When using epoch-based, training stops after one epoch; when using iter-based,
         training stops after #iters_per_epoch iterations.
         """
-        
-        data_loader, optimizer, model = accelerator.prepare(data_loader,optimizer,model)
+
+        # Only prepare once on first epoch (fix memory leak from multiple prepare() calls)
+        if epoch == 0 and not hasattr(self, '_accelerator_prepared'):
+            data_loader, optimizer, model = accelerator.prepare(data_loader,optimizer,model)
+            self._accelerator_prepared = True
+            self._prepared_model = model
+            self._prepared_optimizer = optimizer
+            self._prepared_dataloader = data_loader
+        elif hasattr(self, '_accelerator_prepared'):
+            model = self._prepared_model
+            optimizer = self._prepared_optimizer
+            data_loader = self._prepared_dataloader
+
         use_amp = scaler is not None
         
         logger = logging.getLogger('ivcr')
