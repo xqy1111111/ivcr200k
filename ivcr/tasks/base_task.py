@@ -190,17 +190,8 @@ class BaseTask:
         training stops after #iters_per_epoch iterations.
         """
 
-        # Only prepare once on first epoch (fix memory leak from multiple prepare() calls)
-        if epoch == 0 and not hasattr(self, '_accelerator_prepared'):
-            data_loader, optimizer, model = accelerator.prepare(data_loader,optimizer,model)
-            self._accelerator_prepared = True
-            self._prepared_model = model
-            self._prepared_optimizer = optimizer
-            self._prepared_dataloader = data_loader
-        elif hasattr(self, '_accelerator_prepared'):
-            model = self._prepared_model
-            optimizer = self._prepared_optimizer
-            data_loader = self._prepared_dataloader
+        # Note: accelerator.prepare() is now called ONCE in runner_base.py train() method
+        # before the training loop starts. This prevents memory duplication.
 
         use_amp = scaler is not None
         

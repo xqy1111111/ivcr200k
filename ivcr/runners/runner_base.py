@@ -371,13 +371,23 @@ class RunnerBase:
         start_time = time.time()
         best_agg_metric = 0
         best_epoch = 0
-        
+
         self.save_log_config()
         logger = setup_logger('ivcr',self.output_dir)
         # resume from checkpoint if specified
         if not self.evaluate_only and self.resume_ckpt_path is not None:
             self._load_checkpoint(self.resume_ckpt_path)
-        
+
+        # CRITICAL FIX: Prepare model, optimizer, and dataloader with accelerator ONCE before training loop
+        # This prevents memory duplication from calling prepare() multiple times each epoch
+        logger.info("Preparing model, optimizer, and dataloader with accelerator...")
+        self._model, self._optimizer, train_dataloader = self.accelerator.prepare(
+            self._model, self.optimizer, self.train_loader
+        )
+        # Update the train_loader reference in dataloaders dict
+        self._dataloaders["train"] = train_dataloader
+        logger.info("Accelerator preparation complete.")
+
         for cur_epoch in range(self.start_epoch, self.max_epoch):
             # change_seeds(cur_epoch+21)
             # training phase
