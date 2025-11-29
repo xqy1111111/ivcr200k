@@ -1,0 +1,10 @@
+name: ivcr
+channels:
+  - defaults
+dependencies:
+  - python=3.9.18  # 锁定原作者的 Python 版本
+  - pip=23.2.1
+  - ffmpeg         # 视频处理底层库
+  - ninja          # DeepSpeed 编译加速必须
+  - git            # 源码安装支持
+  - pip            # 确保 pip 存在

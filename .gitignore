@@ -3,7 +3,7 @@ data/
 outputs/
 
 # Python
-__pycache__/
+*__pycache__*
 *.py[cod]
 *$py.class
 *.so
@@ -66,3 +66,6 @@ temp/
 *.zip
 *.tar
 *.tar.gz
+
+__pycache__/
+*.py[cod]
