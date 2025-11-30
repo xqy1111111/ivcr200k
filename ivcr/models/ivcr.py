@@ -79,6 +79,7 @@ class IVCR(Blip2Base):
             lora=False,
             qformer_text_input=False,
             lora_inference_mode=True,
+            lora_r=32,  # 添加 LoRA rank 参数
             window_size=0,
             stride=0,
             tokenizer = None,
@@ -183,14 +184,15 @@ class IVCR(Blip2Base):
         logging.info('Loading LLAMA Done')
 
         self.lora = lora
+        self.lora_r = lora_r
         if self.lora:
             logging.info('Using LORA')
             from peft import LoraConfig, get_peft_model, TaskType
             config = LoraConfig(
                 task_type=TaskType.CAUSAL_LM,
                 inference_mode=lora_inference_mode,#false
-                r=32,
-                lora_alpha=32,
+                r=lora_r,  # 使用配置文件中的 lora_r
+                lora_alpha=lora_r,  # 通常 lora_alpha = lora_r
                 lora_dropout=0.1,
                 target_modules=['q_proj', 'k_proj', 'v_proj', 'o_proj']
             )
@@ -265,6 +267,27 @@ class IVCR(Blip2Base):
             self.video_query_tokens.requires_grad = True
             logging.info('video_Qformer is not frozen')
         self.cross_fn = nn.CrossEntropyLoss()
+        
+        # ========== 添加可微分的检索头 ==========
+        llama_hidden_size = self.llama_model.config.hidden_size  # 4096 for LLaMA-7B
+        
+        # 视频检索头：从隐藏状态预测10个视频中的正确索引
+        self.video_retrieval_head = nn.Sequential(
+            nn.Linear(llama_hidden_size, 512),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(512, 10)  # 10个视频候选
+        )
+        
+        # 时刻检索头：从隐藏状态预测 [start_time, end_time]
+        self.temporal_head = nn.Sequential(
+            nn.Linear(llama_hidden_size, 512),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(512, 2)  # [start, end]
+        )
+        
+        logging.info('Retrieval heads initialized')
     def id2text(self,id):
         for key,value in self.vocab.items():
             if value == id:
@@ -458,45 +481,83 @@ class IVCR(Blip2Base):
                 inputs_embeds=inputs_embeds, 
                 return_dict=True,
                 labels=targets,
+                output_hidden_states=True,  # 需要获取隐藏状态用于检索头
             )
-            iou_loss = 0
-            index_loss = 0
+            iou_loss = 0.
+            index_loss = 0.
+            
             if flag == 1:
-                indice = torch.where(targets[0]==-100)
-                end_index = indice[0].shape
-                end_index = end_index[0]
-                pre_logits = outputs.logits
-                pre_logits = pre_logits.argmax(dim=-1)
-                pre_text = self.llama_tokenizer.batch_decode(pre_logits[:,end_index-1:], skip_special_tokens=True, clean_up_tokenization_spaces=False)
-                pre_text = pre_text[0]
-                first_part = pre_text.split('.')[0]
-                #iou 
+                # 获取最后一层隐藏状态
+                hidden_states = outputs.hidden_states[-1]  # [batch, seq_len, hidden_size]
+                
+                # 找到输出序列的最后一个有效位置（用于预测）
+                # 使用 attention_mask 或 targets 找到有效位置
+                indice = torch.where(targets[0] == -100)
+                if len(indice[0]) > 0:
+                    end_index = indice[0][-1].item()  # 最后一个 -100 的位置
+                else:
+                    end_index = hidden_states.shape[1] - 1
+                
+                # 获取用于预测的隐藏状态（取最后几个有效token的平均）
+                pred_hidden = hidden_states[:, max(0, end_index-5):end_index+1, :].mean(dim=1)  # [batch, hidden_size]
+                
+                # 时刻检索 (Moment Retrieval)
                 if len(token_pos_list) == 1:
-                    pre_temporal = extract_time(pre_text)
+                    # 使用可微分的时刻检索头
+                    temporal_pred = self.temporal_head(pred_hidden)  # [batch, 2]
+                    
                     gt_temporal = samples['gt_value'][0]
-                    if pre_temporal == []:
-                        iou_loss = 1.
-                    elif len(pre_temporal[0]) == 2:
-                            iou_loss = iou(pre_temporal[0],gt_temporal)
+                    if isinstance(gt_temporal, list) and len(gt_temporal) >= 2:
+                        gt_temporal_tensor = torch.tensor(gt_temporal[:2], dtype=torch.float32, device=pred_hidden.device)
+                        
+                        # 使用 ground truth 的最大值估算视频时长，并给予一些余量
+                        video_duration = max(gt_temporal[1] * 1.5, 100.0)  # 至少100秒或gt_end的1.5倍
+                        
+                        # 归一化到 [0, video_duration]
+                        temporal_pred = torch.sigmoid(temporal_pred) * video_duration
+                        
+                        # 可微分的 IoU 损失
+                        pred_start, pred_end = temporal_pred[0, 0], temporal_pred[0, 1]
+                        gt_start, gt_end = gt_temporal_tensor[0], gt_temporal_tensor[1]
+                        
+                        # 确保 start < end
+                        pred_start, pred_end = torch.min(pred_start, pred_end), torch.max(pred_start, pred_end)
+                        
+                        # 计算交集
+                        inter_start = torch.max(pred_start, gt_start)
+                        inter_end = torch.min(pred_end, gt_end)
+                        inter = torch.clamp(inter_end - inter_start, min=0)
+                        
+                        # 计算并集
+                        union = (pred_end - pred_start) + (gt_end - gt_start) - inter + 1e-6
+                        
+                        # IoU (添加小值避免除零)
+                        iou_score = inter / union
+                        iou_loss = 1.0 - iou_score  # IoU损失
                     else:
-                        iou_loss = 1.
-                #视频检索loss
+                        iou_loss = 0.
+                
+                # 视频检索 (Video Retrieval)
                 elif len(token_pos_list) == 10:
-                    iou_loss = 1.
-                    second_part = pre_text.split('.')[1]
-                    index = find_number(second_part)-1
-                    if 0<=index<=9:
-                        pre_index = torch.full((1,10),0.01)
-                        pre_index[0][index] = 10
-                        gt_index = samples['gt_value']
-                        gt_index[0] = gt_index[0]-1
-                        gt = torch.tensor(gt_index)
-                        index_loss = self.cross_fn(pre_index,gt)
+                    # 使用可微分的视频检索头
+                    video_logits = self.video_retrieval_head(pred_hidden)  # [batch, 10]
+                    
+                    gt_index = samples['gt_value']
+                    if isinstance(gt_index, list):
+                        gt_index = gt_index[0]
+                    gt_index = int(gt_index) - 1  # 转换为 0-indexed
+                    
+                    if 0 <= gt_index <= 9:
+                        gt_tensor = torch.tensor([gt_index], dtype=torch.long, device=video_logits.device)
+                        index_loss = self.cross_fn(video_logits, gt_tensor)
                     else:
                         index_loss = 0.
-                loss  = outputs.loss #大语言模型的自回归损失loss
-                loss = loss + 0.01*((1-iou_loss) + index_loss)
-                return {"loss":loss}
+                    
+                    iou_loss = 0.  # 视频检索任务不需要 IoU 损失
+                
+                loss = outputs.loss  # 大语言模型的自回归损失
+                loss = loss + 0.1 * (iou_loss + index_loss)  # 调整权重从0.01到0.1
+                return {"loss": loss}
             else:
                 loss = outputs.loss
                 return {"loss": loss}
@@ -520,6 +581,7 @@ class IVCR(Blip2Base):
         device_8bit = cfg.get("device_8bit", 0)
         lora = cfg.get("lora", False)
         lora_inference_mode = cfg.get("lora_inference_mode", False)
+        lora_r = cfg.get("lora_r", 32)  # 添加 lora_r 配置读取
 
         prompt_path = cfg.get("prompt_path", "")
         prompt_template = cfg.get("prompt_template", "")
@@ -566,6 +628,7 @@ class IVCR(Blip2Base):
             lora=lora,
             qformer_text_input=qformer_text_input,
             lora_inference_mode=lora_inference_mode,
+            lora_r=lora_r,  # 传递 lora_r 参数
             window_size=window_size,
             stride=stride,
             tokenizer= tokenizer,
